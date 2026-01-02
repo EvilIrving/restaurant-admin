@@ -114,7 +114,8 @@
         showQRModal = true;
         isGeneratingQR = true;
         
-        const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        // 使用固定的正式域名
+        const baseUrl = 'https://restaurant.onecat.dev';
         qrCodeUrl = await generateStyledQRCode(tableId, baseUrl);
         
         isGeneratingQR = false;

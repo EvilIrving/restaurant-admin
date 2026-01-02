@@ -127,19 +127,14 @@ async function createCompositeQRImage(qrDataUrl, tableId, scale = 3) {
             const qrY = qrContainerY + (qrContainerSize - qrSize) / 2;
             ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
             
-            // 7. 扫描提示框
+            // 7. 底部提示区域
             ctx.fillStyle = '#1a1a2e';
-            roundRect(ctx, (baseWidth - 280) / 2, 640, 280, 50, 12);
+            roundRect(ctx, (baseWidth - 300) / 2, 640, 300, 55, 12);
             ctx.fill();
             
             ctx.fillStyle = '#ffffff';
-            ctx.font = '16px -apple-system, BlinkMacSystemFont, sans-serif';
-            ctx.fillText('老板家开发的程序，您放心扫码', baseWidth / 2, 668);
-            
-            // 8. 信任标签
-            ctx.fillStyle = '#666666';
-            ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
-            ctx.fillText('老板家开发的网页，您放心扫码', baseWidth / 2, 720);
+            ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, sans-serif';
+            ctx.fillText('老板家开发，请放心扫码', baseWidth / 2, 668);
             
             // 导出高质量PNG
             resolve(canvas.toDataURL('image/png', 1.0));
