@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
+console.log('[hooks] Supabase URL:', PUBLIC_SUPABASE_URL ? PUBLIC_SUPABASE_URL.substring(0, 30) + '...' : 'NOT SET');
+console.log('[hooks] Supabase Key:', PUBLIC_SUPABASE_ANON_KEY ? 'SET (' + PUBLIC_SUPABASE_ANON_KEY.length + ' chars)' : 'NOT SET');
+
 export async function handle({ event, resolve }) {
     event.locals.supabase = createServerClient(
         PUBLIC_SUPABASE_URL,

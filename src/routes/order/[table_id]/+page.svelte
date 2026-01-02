@@ -4,17 +4,19 @@
     import { cart } from '$lib/stores/cart.svelte.js';
 
     let { data } = $props();
-    let selectedCategory = $state(data.categories[0] || '热菜');
+    let selectedCategory = $derived(data.categories[0] || '热菜');
+    let currentCategory = $state(null);
     let isSubmitting = $state(false);
     let showOptionsModal = $state(false);
     let selectedDish = $state(null);
     let selectedOptions = $state([]);
 
-    let filteredDishes = $derived(data.dishes.filter(d => d.category === selectedCategory));
+    let activeCategory = $derived(currentCategory ?? selectedCategory);
+    let filteredDishes = $derived(data.dishes.filter(d => d.category === activeCategory));
 
     function openOptionsModal(dish) {
         selectedDish = dish;
-        const options = dish.options ? JSON.parse(dish.options) : [];
+        const options = Array.isArray(dish.options) ? dish.options : [];
         selectedOptions = options.length > 0 ? [options[0]] : [];
         showOptionsModal = true;
     }
@@ -38,6 +40,16 @@
             await update();
             isSubmitting = false;
         };
+    }
+
+    function closeModal() {
+        showOptionsModal = false;
+    }
+
+    function handleKeydown(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
     }
 </script>
 
@@ -70,8 +82,8 @@
         <div class="flex overflow-x-auto bg-white border-b border-slate-100 no-scrollbar">
             {#each data.categories as cat}
                 <button 
-                    onclick={() => selectedCategory = cat}
-                    class="px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors {selectedCategory === cat ? 'text-orange-600 border-b-2 border-orange-500' : 'text-slate-500'}"
+                    onclick={() => currentCategory = cat}
+                    class="px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors {activeCategory === cat ? 'text-orange-600 border-b-2 border-orange-500' : 'text-slate-500'}"
                 >
                     {cat}
                 </button>
@@ -106,7 +118,7 @@
                         <div>
                             <h3 class="font-bold text-slate-800">{dish.name}</h3>
                             {#if dish.options}
-                                {@const opts = JSON.parse(dish.options)}
+                                {@const opts = Array.isArray(dish.options) ? dish.options : []}
                                 {#if opts.length > 0}
                                     <p class="text-xs text-slate-400 mt-1">
                                         {opts.map(o => o.name).join('/')}
@@ -171,9 +183,21 @@
 
     <!-- Options Modal -->
     {#if showOptionsModal && selectedDish}
-        {@const dishOptions = selectedDish.options ? JSON.parse(selectedDish.options) : []}
-        <div class="absolute inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" onclick={() => showOptionsModal = false} onkeydown={(e) => e.key === 'Escape' && (showOptionsModal = false)}>
-            <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-xl p-6 space-y-4" role="document" onclick={(e) => e.stopPropagation()}>
+        {@const dishOptions = Array.isArray(selectedDish.options) ? selectedDish.options : []}
+        <div 
+            class="absolute inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" 
+            role="dialog" 
+            aria-modal="true"
+            tabindex="-1"
+            onkeydown={handleKeydown}
+        >
+            <button 
+                type="button"
+                class="absolute inset-0 w-full h-full cursor-default bg-transparent border-none"
+                onclick={closeModal}
+                aria-label="关闭弹窗"
+            ></button>
+            <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-xl p-6 space-y-4 relative z-10" role="document">
                 <h3 class="text-lg font-bold">选择规格 - {selectedDish.name}</h3>
                 
                 {#if dishOptions.length > 0}
