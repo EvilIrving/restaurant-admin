@@ -70,8 +70,22 @@ export async function load({ params, locals }) {
     // 计算总消费
     const totalSpent = orders.reduce((sum, order) => sum + parseFloat(order.subtotal || 0), 0);
 
-    // 获取分类列表
-    const categories = [...new Set(dishes?.map(d => d.category) || [])];
+    // 获取分类列表（按 sort_order 排序）
+    const { data: allCategories, error: categoriesError } = await locals.supabase
+        .from('categories')
+        .select('name')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+    if (categoriesError) {
+        console.error('Error fetching categories:', categoriesError);
+    }
+
+    // 只保留有菜品的分类
+    const dishCategories = new Set(dishes?.map(d => d.category) || []);
+    const categories = (allCategories || [])
+        .map(c => c.name)
+        .filter(name => dishCategories.has(name));
 
     console.log('[load] === 返回数据汇总 ===');
     console.log('[load] 菜品数量:', dishes?.length || 0);

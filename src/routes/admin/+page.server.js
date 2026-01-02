@@ -3,6 +3,9 @@ import { error, fail } from '@sveltejs/kit';
 export async function load({ locals }) {
     console.log('\n========== [admin/load] 开始加载后台数据 ==========');
     const supabase = locals.supabase;
+    
+    // 调试：检查 supabase 客户端
+    console.log('[admin/load] supabase 客户端存在:', !!supabase);
 
     // 获取所有桌子
     const { data: tables, error: tablesError } = await supabase
@@ -39,15 +42,18 @@ export async function load({ locals }) {
     }
 
     // 获取所有菜品
+    console.log('[admin/load] 开始查询 dishes 表...');
     const { data: dishes, error: dishesError } = await supabase
         .from('dishes')
         .select('*')
-        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
-    console.log('[admin/load] 菜品数据:', dishes);
+    console.log('[admin/load] 菜品查询结果:');
+    console.log('  - dishes 数据:', dishes);
+    console.log('  - dishes 数量:', dishes?.length ?? 'null');
+    console.log('  - dishesError:', dishesError);
     if (dishesError) {
-        console.error('[admin/load] 获取菜品失败:', dishesError);
+        console.error('[admin/load] 获取菜品失败:', JSON.stringify(dishesError, null, 2));
     }
 
     // 获取所有分类
@@ -82,12 +88,20 @@ export async function load({ locals }) {
         }
     }
 
-    return {
+    const result = {
         tables: tables || [],
         tableStatusMap,
         dishes: dishes || [],
         categories: categories || []
     };
+    
+    console.log('[admin/load] 返回数据汇总:');
+    console.log('  - tables 数量:', result.tables.length);
+    console.log('  - dishes 数量:', result.dishes.length);
+    console.log('  - categories 数量:', result.categories.length);
+    console.log('========== [admin/load] 加载完成 ==========\n');
+    
+    return result;
 }
 
 export const actions = {

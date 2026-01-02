@@ -134,12 +134,12 @@ async function createCompositeQRImage(qrDataUrl, tableId, scale = 3) {
             
             ctx.fillStyle = '#ffffff';
             ctx.font = '16px -apple-system, BlinkMacSystemFont, sans-serif';
-            ctx.fillText('扫码点餐 · 免排队', baseWidth / 2, 668);
+            ctx.fillText('老板家开发的程序，您放心扫码', baseWidth / 2, 668);
             
             // 8. 信任标签
             ctx.fillStyle = '#666666';
             ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
-            ctx.fillText('官方正版  请放心扫码', baseWidth / 2, 720);
+            ctx.fillText('老板家开发的网页，您放心扫码', baseWidth / 2, 720);
             
             // 导出高质量PNG
             resolve(canvas.toDataURL('image/png', 1.0));

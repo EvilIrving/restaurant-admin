@@ -163,10 +163,15 @@
     }
 
     function deleteDish(dish) {
-        if (!confirm(`确定删除菜品 "${dish.name}" 吗？`)) return;
-        return async ({ result, update }) => {
-            if (result.type === 'success') invalidateAll();
-            await update();
+        return ({ cancel }) => {
+            if (!confirm(`确定删除菜品 "${dish.name}" 吗？`)) {
+                cancel();
+                return;
+            }
+            return async ({ result, update }) => {
+                if (result.type === 'success') invalidateAll();
+                await update();
+            };
         };
     }
 
