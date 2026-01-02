@@ -445,10 +445,10 @@
             <!-- 菜品列表 -->
             <div class="space-y-3">
                 {#each filteredDishes as dish (dish.id)}
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4 {isBatchMode ? 'cursor-pointer' : ''}" 
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3 {isBatchMode ? 'cursor-pointer' : ''}" 
                          onclick={() => isBatchMode && toggleDishSelection(dish.id)}>
                         {#if isBatchMode}
-                            <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center {selectedDishes.includes(dish.id) ? 'bg-orange-500 border-orange-500' : 'border-slate-300'}">
+                            <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 {selectedDishes.includes(dish.id) ? 'bg-orange-500 border-orange-500' : 'border-slate-300'}">
                                 {#if selectedDishes.includes(dish.id)}
                                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -457,7 +457,7 @@
                             </div>
                         {/if}
                         
-                        <div class="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center text-2xl overflow-hidden shrink-0">
+                        <div class="w-14 h-14 bg-slate-100 rounded-lg flex items-center justify-center text-2xl overflow-hidden shrink-0">
                             {#if dish.image_url}
                                 <img src={dish.image_url} alt={dish.name} class="w-full h-full object-cover" />
                             {:else}
@@ -467,54 +467,54 @@
                         
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
-                                <h3 class="font-bold text-slate-800">{dish.name}</h3>
+                                <h3 class="font-bold text-slate-800 truncate">{dish.name}</h3>
                                 {#if dish.is_recommended}
-                                    <span class="text-xs px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full">推荐</span>
+                                    <span class="text-xs px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full shrink-0">推荐</span>
                                 {/if}
                             </div>
-                            <p class="text-sm text-slate-500">{dish.category}</p>
-                            <p class="text-lg font-bold text-orange-600">¥{dish.price}</p>
+                            <p class="text-sm text-slate-500 truncate">{dish.category}</p>
+                            <p class="text-base font-bold text-orange-600">¥{dish.price}</p>
                         </div>
                         
-                        <div class="flex items-center gap-1">
-                            <span class="text-xs px-2 py-1 rounded-full {dish.is_available ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">
+                        <div class="flex items-center gap-1 shrink-0">
+                            <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap {dish.is_available ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">
                                 {dish.is_available ? '上架' : '下架'}
                             </span>
                         </div>
                         
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-0.5 shrink-0">
                             <form method="POST" action="?/updateDishStatus" use:enhance={toggleDishAvailability(dish)}>
                                 <input type="hidden" name="dishId" value={dish.id} />
                                 <input type="hidden" name="isAvailable" value={!dish.is_available} />
                                 <button 
                                     type="submit"
-                                    class="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
+                                    class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"
                                     title={dish.is_available ? '下架' : '上架'}
                                 >
                                     {#if dish.is_available}
-                                        <ArrowDown size={18} />
+                                        <ArrowDown size={16} />
                                     {:else}
-                                        <ArrowUp size={18} />
+                                        <ArrowUp size={16} />
                                     {/if}
                                 </button>
                             </form>
                             
                             <button 
                                 onclick={() => openEditDish(dish)}
-                                class="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
+                                class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"
                                 title="编辑"
                             >
-                                <Edit size={18} />
+                                <Edit size={16} />
                             </button>
                             
                             <form method="POST" action="?/deleteDish" use:enhance={deleteDish(dish)}>
                                 <input type="hidden" name="dishId" value={dish.id} />
                                 <button 
                                     type="submit"
-                                    class="p-2 hover:bg-red-50 rounded-lg text-red-500"
+                                    class="p-1.5 hover:bg-red-50 rounded-lg text-red-500"
                                     title="删除"
                                 >
-                                    <Trash2 size={18} />
+                                    <Trash2 size={16} />
                                 </button>
                             </form>
                         </div>
