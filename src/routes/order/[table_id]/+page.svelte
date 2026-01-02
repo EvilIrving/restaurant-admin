@@ -1,6 +1,6 @@
 <script>
     import { enhance } from '$app/forms';
-    import { ShoppingCart, LogOut, Plus, Minus, Trash2 } from 'lucide-svelte';
+    import { ShoppingCart, Plus, Minus, Trash2 } from 'lucide-svelte';
     import { cart } from '$lib/stores/cart.svelte.js';
 
     let { data } = $props();
@@ -106,9 +106,7 @@
                 </span>
             {/if}
         </div>
-        <a href="/" class="text-slate-400 hover:text-slate-600">
-            <LogOut size={18} />
-        </a>
+
     </header>
 
     <!-- Content -->
