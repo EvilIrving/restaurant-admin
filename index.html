@@ -1,0 +1,507 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { ShoppingCart, ChefHat, Clock, CheckCircle, Plus, Minus, Trash2, RotateCcw, Utensils, QrCode, LogOut, ArrowLeft } from 'lucide-react';
+
+// --- Mock Data & Types ---
+
+const INITIAL_DISHES = [
+  { id: 1, name: '招牌红烧肉', price: 58, category: '热菜', options: ['微辣', '中辣'], image: '🥩' },
+  { id: 2, name: '清炒时蔬', price: 28, category: '素菜', options: [], image: '🥬' },
+  { id: 3, name: '宫保鸡丁', price: 42, category: '热菜', options: ['少葱', '多花生'], image: '🥘' },
+  { id: 4, name: '冰镇可乐', price: 6, category: '饮料', options: ['去冰', '少冰'], image: '🥤' },
+  { id: 5, name: '米饭', price: 2, category: '主食', options: [], image: '🍚' },
+];
+
+const INITIAL_TABLES = [
+  { id: 'A01', currentGroupId: null }, // 空闲
+  { id: 'A02', currentGroupId: 101 },  // 占用 (模拟已有数据)
+  { id: 'B01', currentGroupId: null },
+];
+
+// 模拟已存在的订单组
+const INITIAL_GROUPS = [
+  { id: 101, tableId: 'A02', status: 'active', createdAt: new Date().toISOString() }
+];
+
+// 模拟已存在的子订单
+const INITIAL_ORDERS = [
+  { 
+    id: 501, 
+    groupId: 101, 
+    items: [{ id: 4, name: '冰镇可乐', price: 6, qty: 2, options: ['去冰'] }], 
+    subtotal: 12, 
+    sequence: 1, 
+    status: 'completed',
+    createdAt: new Date(Date.now() - 3600000).toISOString() 
+  }
+];
+
+// --- Components ---
+
+const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false }) => {
+  const baseStyle = "px-4 py-2 rounded-lg font-medium transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed";
+  const variants = {
+    primary: "bg-orange-500 text-white hover:bg-orange-600 shadow-md shadow-orange-200",
+    secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50",
+    danger: "bg-red-50 text-red-600 hover:bg-red-100",
+    outline: "border-2 border-orange-500 text-orange-500 hover:bg-orange-50"
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>
+      {children}
+    </button>
+  );
+};
+
+const Badge = ({ status }) => {
+  const styles = {
+    active: "bg-green-100 text-green-700",
+    completed: "bg-slate-100 text-slate-600",
+    pending: "bg-orange-100 text-orange-700",
+    cooking: "bg-blue-100 text-blue-700",
+  };
+  const labels = {
+    active: "用餐中",
+    completed: "已结账",
+    pending: "待制作",
+    cooking: "制作中"
+  };
+  return (
+    <span className={`text-xs px-2 py-1 rounded-full font-bold ${styles[status] || styles.completed}`}>
+      {labels[status] || status}
+    </span>
+  );
+};
+
+// --- Main App ---
+
+export default function OrderSystemPrototype() {
+  // Global State (模拟 Database)
+  const [tables, setTables] = useState(INITIAL_TABLES);
+  const [groups, setGroups] = useState(INITIAL_GROUPS);
+  const [orders, setOrders] = useState(INITIAL_ORDERS);
+  
+  // Local UI State
+  const [view, setView] = useState('landing'); // landing, guest, admin
+  const [guestTableId, setGuestTableId] = useState(null);
+  const [cart, setCart] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('热菜');
+  const [adminSelectedTable, setAdminSelectedTable] = useState(null);
+
+  // --- Helpers ---
+
+  // 获取某个 Table 当前活跃的 Group
+  const getActiveGroup = (tableId) => {
+    const table = tables.find(t => t.id === tableId);
+    if (!table || !table.currentGroupId) return null;
+    return groups.find(g => g.id === table.currentGroupId);
+  };
+
+  // 获取某个 Group 下的所有 Orders (聚合逻辑)
+  const getGroupOrders = (groupId) => {
+    return orders.filter(o => o.groupId === groupId).sort((a, b) => b.sequence - a.sequence); // 倒序显示，最新的在上面
+  };
+
+  // 计算 Group 总价
+  const getGroupTotal = (groupId) => {
+    const groupOrders = orders.filter(o => o.groupId === groupId);
+    return groupOrders.reduce((sum, o) => sum + o.subtotal, 0);
+  };
+
+  // --- Actions ---
+
+  // 顾客：加入购物车
+  const addToCart = (dish) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.id === dish.id);
+      if (existing) {
+        return prev.map(i => i.id === dish.id ? { ...i, qty: i.qty + 1 } : i);
+      }
+      return [...prev, { ...dish, qty: 1, selectedOptions: dish.options[0] ? [dish.options[0]] : [] }];
+    });
+  };
+
+  // 顾客：提交订单 (核心逻辑：判断是新开单还是加单)
+  const submitOrder = () => {
+    if (cart.length === 0) return;
+
+    let groupId;
+    let sequence = 1;
+    const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+
+    const activeGroup = getActiveGroup(guestTableId);
+
+    if (activeGroup) {
+      // 1. 加单逻辑
+      groupId = activeGroup.id;
+      const existingOrders = getGroupOrders(groupId);
+      sequence = existingOrders.length > 0 ? existingOrders[0].sequence + 1 : 1;
+    } else {
+      // 2. 新开单逻辑
+      groupId = Date.now(); // Mock ID
+      const newGroup = {
+        id: groupId,
+        tableId: guestTableId,
+        status: 'active',
+        createdAt: new Date().toISOString()
+      };
+      setGroups(prev => [...prev, newGroup]);
+      
+      // 更新桌子状态
+      setTables(prev => prev.map(t => t.id === guestTableId ? { ...t, currentGroupId: groupId } : t));
+    }
+
+    // 创建子订单
+    const newOrder = {
+      id: Date.now() + 1,
+      groupId: groupId,
+      items: [...cart],
+      subtotal: subtotal,
+      sequence: sequence,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    setOrders(prev => [...prev, newOrder]);
+    setCart([]); // 清空购物车
+    alert(`下单成功！这是第 ${sequence} 次下单。`);
+  };
+
+  // 后台：结束订单 (结账)
+  const settleTable = (tableId) => {
+    const table = tables.find(t => t.id === tableId);
+    if (!table?.currentGroupId) return;
+
+    if(!confirm(`确认结束桌号 ${tableId} 的用餐吗？这将释放桌位。`)) return;
+
+    // 1. 更新 Group 状态
+    setGroups(prev => prev.map(g => g.id === table.currentGroupId ? { ...g, status: 'completed' } : g));
+    
+    // 2. 释放 Table
+    setTables(prev => prev.map(t => t.id === tableId ? { ...t, currentGroupId: null } : t));
+    
+    setAdminSelectedTable(null);
+  };
+
+  // --- Views ---
+
+  const LandingView = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-6 space-y-8">
+      <div className="text-center">
+        <div className="bg-orange-500 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/50">
+          <Utensils size={32} />
+        </div>
+        <h1 className="text-3xl font-bold">扫码点餐系统 v1.2</h1>
+        <p className="text-slate-400 mt-2">SvelteKit + Supabase 原型演示</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-md">
+        <button 
+          onClick={() => setView('guest_select')}
+          className="flex flex-col items-center p-6 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors border border-slate-700"
+        >
+          <QrCode size={40} className="mb-3 text-blue-400" />
+          <span className="font-bold text-lg">我是顾客</span>
+          <span className="text-xs text-slate-500 mt-1">模拟扫码点餐</span>
+        </button>
+
+        <button 
+          onClick={() => setView('admin')}
+          className="flex flex-col items-center p-6 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors border border-slate-700"
+        >
+          <ChefHat size={40} className="mb-3 text-orange-400" />
+          <span className="font-bold text-lg">我是店员</span>
+          <span className="text-xs text-slate-500 mt-1">后台管理 / 结账</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  const GuestView = () => {
+    const activeGroup = getActiveGroup(guestTableId);
+    const historyOrders = activeGroup ? getGroupOrders(activeGroup.id) : [];
+    const totalSpent = activeGroup ? getGroupTotal(activeGroup.id) : 0;
+    
+    const categories = [...new Set(INITIAL_DISHES.map(d => d.category))];
+    const filteredDishes = INITIAL_DISHES.filter(d => d.category === selectedCategory);
+
+    return (
+      <div className="flex flex-col h-screen bg-slate-50 max-w-md mx-auto shadow-2xl overflow-hidden relative">
+        {/* Header */}
+        <header className="bg-white p-4 shadow-sm z-10 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+                <div className="bg-slate-900 text-white px-3 py-1 rounded text-sm font-bold">
+                    桌号 {guestTableId}
+                </div>
+                {activeGroup && (
+                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-100 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        用餐中
+                    </span>
+                )}
+            </div>
+            <button onClick={() => setView('landing')} className="text-slate-400 hover:text-slate-600">
+                <LogOut size={18} />
+            </button>
+        </header>
+
+        {/* Content */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+            {/* Categories */}
+            <div className="flex overflow-x-auto bg-white border-b border-slate-100 no-scrollbar">
+                {categories.map(cat => (
+                    <button 
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === cat ? 'text-orange-600 border-b-2 border-orange-500' : 'text-slate-500'}`}
+                    >
+                        {cat}
+                    </button>
+                ))}
+            </div>
+
+            {/* Dishes */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
+                {/* 如果有历史订单，显示简略信息 */}
+                {historyOrders.length > 0 && (
+                    <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 mb-4">
+                        <div className="flex justify-between items-center text-xs text-orange-800 mb-1">
+                            <span className="font-bold">已下单 {historyOrders.length} 次</span>
+                            <span>共消费 ¥{totalSpent}</span>
+                        </div>
+                        <div className="text-xs text-orange-600 truncate">
+                            最近: {historyOrders[0].items.map(i => i.name).join(', ')}
+                        </div>
+                    </div>
+                )}
+
+                {filteredDishes.map(dish => (
+                    <div key={dish.id} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex gap-3">
+                        <div className="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center text-3xl shrink-0">
+                            {dish.image}
+                        </div>
+                        <div className="flex-1 flex flex-col justify-between">
+                            <div>
+                                <h3 className="font-bold text-slate-800">{dish.name}</h3>
+                                <p className="text-xs text-slate-400 mt-1">{dish.options.join('/')}</p>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-orange-600 font-bold">¥{dish.price}</span>
+                                <Button size="sm" onClick={() => addToCart(dish)} className="py-1 px-3 text-xs">
+                                    + 选购
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+
+        {/* Cart & Action Bar */}
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg pb-8">
+            {cart.length > 0 ? (
+                <div className="space-y-3">
+                    <div className="max-h-32 overflow-y-auto space-y-2 mb-2">
+                        {cart.map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-sm">
+                                <span className="text-slate-700">{item.name} x{item.qty}</span>
+                                <span className="font-medium">¥{item.price * item.qty}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex justify-between items-center border-t pt-3">
+                        <div>
+                            <p className="text-xs text-slate-500">待提交金额</p>
+                            <p className="text-xl font-bold text-orange-600">
+                                ¥{cart.reduce((s, i) => s + i.price * i.qty, 0)}
+                            </p>
+                        </div>
+                        <Button onClick={submitOrder} className="w-32">
+                            {activeGroup ? '加菜下单' : '提交订单'}
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex justify-between items-center text-slate-400">
+                    <div className="flex items-center gap-2">
+                        <ShoppingCart size={20} />
+                        <span className="text-sm">购物车为空</span>
+                    </div>
+                </div>
+            )}
+        </div>
+      </div>
+    );
+  };
+
+  const AdminView = () => {
+    // Admin Detail View
+    if (adminSelectedTable) {
+        const activeGroup = getActiveGroup(adminSelectedTable);
+        const groupOrders = activeGroup ? getGroupOrders(activeGroup.id) : [];
+        const total = activeGroup ? getGroupTotal(activeGroup.id) : 0;
+
+        return (
+            <div className="flex flex-col h-screen bg-slate-100">
+                <header className="bg-white p-4 shadow-sm flex items-center gap-3">
+                    <button onClick={() => setAdminSelectedTable(null)} className="p-2 hover:bg-slate-100 rounded-full">
+                        <ArrowLeft size={20} />
+                    </button>
+                    <div>
+                        <h2 className="font-bold text-lg">桌号 {adminSelectedTable} 详情</h2>
+                        <p className="text-xs text-slate-500">
+                            状态: {activeGroup ? '用餐中' : '空闲'}
+                        </p>
+                    </div>
+                </header>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                    {activeGroup ? (
+                        <>
+                            {/* Aggregated Total */}
+                            <div className="bg-white p-6 rounded-xl shadow-sm text-center">
+                                <p className="text-slate-500 text-sm mb-1">当前消费总计</p>
+                                <p className="text-4xl font-bold text-slate-800">¥{total}</p>
+                                <p className="text-xs text-slate-400 mt-2">共 {groupOrders.length} 次下单</p>
+                            </div>
+
+                            {/* Orders List (Aggregated) */}
+                            <div className="space-y-4">
+                                {groupOrders.map((order) => (
+                                    <div key={order.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                        <div className="bg-slate-50 p-3 border-b border-slate-100 flex justify-between items-center">
+                                            <span className="font-bold text-slate-700">第 {order.sequence} 次下单</span>
+                                            <span className="text-xs text-slate-400">{new Date(order.createdAt).toLocaleTimeString()}</span>
+                                        </div>
+                                        <div className="p-3 space-y-2">
+                                            {order.items.map((item, idx) => (
+                                                <div key={idx} className="flex justify-between text-sm">
+                                                    <span className="flex items-center gap-2">
+                                                        <span className="w-5 h-5 bg-slate-100 rounded flex items-center justify-center text-xs font-bold text-slate-600">{item.qty}</span>
+                                                        {item.name}
+                                                    </span>
+                                                    <span className="text-slate-600">¥{item.price * item.qty}</span>
+                                                </div>
+                                            ))}
+                                            <div className="pt-2 mt-2 border-t border-dashed border-slate-200 flex justify-end">
+                                                <span className="text-sm font-bold">小计: ¥{order.subtotal}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center py-20 text-slate-400">
+                            <Clock size={48} className="mx-auto mb-4 opacity-50" />
+                            <p>该桌当前没有活跃订单</p>
+                        </div>
+                    )}
+                </div>
+
+                <footer className="bg-white p-4 border-t border-slate-200">
+                    {activeGroup ? (
+                        <Button variant="primary" className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white shadow-none" onClick={() => settleTable(adminSelectedTable)}>
+                            结束订单 / 释放桌位
+                        </Button>
+                    ) : (
+                        <Button variant="secondary" className="w-full" disabled>空闲桌位</Button>
+                    )}
+                </footer>
+            </div>
+        );
+    }
+
+    // Admin Dashboard
+    return (
+      <div className="flex flex-col h-screen bg-slate-100">
+        <header className="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center">
+            <h1 className="font-bold text-lg flex items-center gap-2">
+                <ChefHat size={20} /> 餐厅管理端
+            </h1>
+            <button onClick={() => setView('landing')} className="text-slate-400 hover:text-white">
+                <LogOut size={18} />
+            </button>
+        </header>
+
+        <div className="flex-1 p-4 overflow-y-auto">
+            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">桌台状态</h2>
+            <div className="grid grid-cols-2 gap-4">
+                {tables.map(table => {
+                    const group = getActiveGroup(table.id);
+                    const total = group ? getGroupTotal(group.id) : 0;
+                    
+                    return (
+                        <div 
+                            key={table.id} 
+                            onClick={() => setAdminSelectedTable(table.id)}
+                            className={`p-4 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden ${group ? 'bg-white border-orange-500 shadow-md' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
+                        >
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-2xl font-bold text-slate-800">{table.id}</span>
+                                <Badge status={group ? 'active' : 'free'} />
+                            </div>
+                            
+                            {group ? (
+                                <div className="space-y-1">
+                                    <p className="text-xs text-slate-500">当前消费</p>
+                                    <p className="text-lg font-bold text-orange-600">¥{total}</p>
+                                    <p className="text-xs text-orange-400 mt-2 flex items-center gap-1">
+                                        <Clock size={12} /> 
+                                        {Math.floor((Date.now() - new Date(group.createdAt).getTime()) / 60000)}分钟前开台
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="h-16 flex items-center justify-center text-slate-300">
+                                    <span className="text-sm">空闲中</span>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+                
+                {/* Add Table Button */}
+                <button 
+                    onClick={() => {
+                        const nextId = `A0${tables.length + 1}`;
+                        setTables([...tables, { id: nextId, currentGroupId: null }]);
+                    }}
+                    className="p-4 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors h-[164px]"
+                >
+                    <Plus size={24} className="mb-2" />
+                    <span className="text-sm font-medium">新增桌台</span>
+                </button>
+            </div>
+        </div>
+      </div>
+    );
+  };
+
+  const GuestSelectTable = () => (
+    <div className="flex flex-col h-screen bg-slate-50 p-6">
+        <h2 className="text-2xl font-bold text-slate-800 mb-6">请选择当前桌号</h2>
+        <div className="grid grid-cols-2 gap-4">
+            {tables.map(table => (
+                <button 
+                    key={table.id}
+                    onClick={() => {
+                        setGuestTableId(table.id);
+                        setView('guest');
+                    }}
+                    className="p-6 bg-white rounded-xl shadow-sm border border-slate-200 text-xl font-bold hover:border-orange-500 hover:text-orange-600 transition-colors"
+                >
+                    {table.id}
+                </button>
+            ))}
+        </div>
+        <button onClick={() => setView('landing')} className="mt-auto text-center text-slate-400 py-4">返回首页</button>
+    </div>
+  );
+
+  // --- Router Switch ---
+  switch (view) {
+    case 'guest': return <GuestView />;
+    case 'guest_select': return <GuestSelectTable />;
+    case 'admin': return <AdminView />;
+    default: return <LandingView />;
+  }
+}
