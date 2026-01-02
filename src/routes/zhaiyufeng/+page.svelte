@@ -1,7 +1,7 @@
 <script>
     import { enhance } from '$app/forms';
     import { invalidateAll } from '$app/navigation';
-    import { ChefHat, LogOut, Plus, Clock, Utensils, LayoutGrid, TrendingUp, Search, Edit, Trash2, ArrowUp, ArrowDown, QrCode } from 'lucide-svelte';
+    import { ChefHat, LogOut, Plus, Clock, Utensils, LayoutGrid, TrendingUp, Search, Edit, QrCode } from 'lucide-svelte';
     import { supabase } from '$lib/supabaseClient.js';
     import { onMount } from 'svelte';
     import DishFormModal from '$lib/components/admin/DishFormModal.svelte';
@@ -26,7 +26,7 @@
     // 菜品相关状态
     let searchKeyword = $state('');
     let selectedCategory = $state('');
-    let selectedStatus = $state('all');
+
     let selectedDishes = $state([]);
     let editingDish = $state(null);
     let showDishModal = $state(false);
@@ -42,9 +42,6 @@
         if (searchKeyword && !dish.name.includes(searchKeyword)) return false;
         // 分类筛选
         if (selectedCategory && dish.category !== selectedCategory) return false;
-        // 状态筛选
-        if (selectedStatus === 'available' && !dish.is_available) return false;
-        if (selectedStatus === 'unavailable' && dish.is_available) return false;
         return true;
     }));
 
@@ -98,16 +95,6 @@
         };
     }
 
-    // 删除桌子
-    function deleteTable(tableId) {
-        return async ({ result, update }) => {
-            if (!confirm(`确定删除桌号 ${tableId} 吗？空闲桌位才能删除。`)) {
-                return;
-            }
-            await update();
-        };
-    }
-
     // 二维码相关函数
     async function showQRCode(tableId) {
         selectedQRTableId = tableId;
@@ -133,12 +120,6 @@
 
 
 
-    // 更新订单状态
-    function updateOrderStatus(orderId, newStatus) {
-        return async ({ update }) => {
-            await update();
-        };
-    }
 
     // 菜品操作
     function openAddDish() {
@@ -157,11 +138,7 @@
         invalidateAll();
     }
 
-    function toggleDishAvailability(dish) {
-        return async ({ update }) => {
-            await update();
-        };
-    }
+
 
     function deleteDish(dish) {
         return ({ cancel }) => {
@@ -205,13 +182,7 @@
         }
     }
 
-    function batchUpdateStatus(status) {
-        if (!confirm(`确定将 ${selectedDishes.length} 道菜品${status ? '上架' : '下架'}吗？`)) return;
-        return async ({ update }) => {
-            await update();
-            selectedDishes = [];
-        };
-    }
+
 
     function batchDelete() {
         if (!confirm(`确定删除选中的 ${selectedDishes.length} 道菜品吗？此操作不可恢复！`)) return;
@@ -294,53 +265,40 @@
                         onkeydown={(e) => e.key === 'Enter' && (selectedTable = table.table_id)}
                         role="button"
                         tabindex="0"
-                        class="p-4 rounded-xl border-2 transition-all text-left cursor-pointer {status ? 'bg-white border-orange-500 shadow-md' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}"
+                        class="p-5 rounded-xl border-2 transition-all text-left cursor-pointer {status ? 'bg-white border-orange-500 shadow-md' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}"
                     >
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-2xl font-bold text-slate-800">{table.table_id}</span>
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="text-4xl font-black text-slate-800">{table.table_id}</span>
                             <div class="flex items-center gap-1">
                                 <button 
                                     onclick={(e) => { e.stopPropagation(); showQRCode(table.table_id); }}
-                                    class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
+                                    class="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
                                     title="二维码"
                                 >
-                                    <QrCode size={16} />
+                                    <QrCode size={22} />
                                 </button>
-                                {#if !status}
-                                    <form method="POST" action="?/deleteTable" use:enhance={deleteTable(table.table_id)}>
-                                        <input type="hidden" name="tableId" value={table.table_id} />
-                                        <button 
-                                            type="submit"
-                                            onclick={(e) => e.stopPropagation()}
-                                            class="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500"
-                                            title="删除"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </form>
-                                {/if}
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 mb-3">
                             {#if status}
-                                <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-bold">用餐中</span>
+                                <span class="text-sm px-3 py-1.5 bg-green-100 text-green-700 rounded-full font-bold">用餐中</span>
                             {:else}
-                                <span class="text-xs px-2 py-1 bg-slate-100 text-slate-500 rounded-full">空闲</span>
+                                <span class="text-sm px-3 py-1.5 bg-slate-100 text-slate-500 rounded-full">空闲</span>
                             {/if}
                         </div>
                         
                         {#if status}
-                            <div class="space-y-1">
-                                <p class="text-xs text-slate-500">当前消费</p>
-                                <p class="text-lg font-bold text-orange-600">¥{status.total}</p>
-                                <p class="text-xs text-orange-400 mt-2 flex items-center gap-1">
-                                    <Clock size={12} /> 
+                            <div class="space-y-2">
+                                <p class="text-base text-slate-500">当前消费</p>
+                                <p class="text-3xl font-black text-orange-600">¥{status.total}</p>
+                                <p class="text-base text-orange-500 mt-3 flex items-center gap-1.5">
+                                    <Clock size={18} /> 
                                     {getTimeAgo(status.group.created_at)}开台
                                 </p>
                             </div>
                         {:else}
-                            <div class="h-16 flex items-center justify-center text-slate-300">
-                                <span class="text-sm">空闲中</span>
+                            <div class="h-20 flex items-center justify-center text-slate-300">
+                                <span class="text-lg">空闲中</span>
                             </div>
                         {/if}
                     </div>
@@ -388,14 +346,7 @@
                             <option value={cat.name}>{cat.icon} {cat.name}</option>
                         {/each}
                     </select>
-                    <select 
-                        bind:value={selectedStatus}
-                        class="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-orange-500"
-                    >
-                        <option value="all">全部状态</option>
-                        <option value="available">已上架</option>
-                        <option value="unavailable">已下架</option>
-                    </select>
+
                 </div>
                 
                 <!-- 批量操作栏 -->
@@ -416,20 +367,6 @@
                                 {selectedDishes.length === filteredDishes.length ? '取消全选' : '全选'}
                             </button>
                             {#if selectedDishes.length > 0}
-                                <form method="POST" action="?/batchUpdateStatus" use:enhance={batchUpdateStatus(true)}>
-                                    <input type="hidden" name="dishIds" value={JSON.stringify(selectedDishes)} />
-                                    <input type="hidden" name="isAvailable" value="true" />
-                                    <button type="submit" class="px-3 py-1 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200">
-                                        批量上架
-                                    </button>
-                                </form>
-                                <form method="POST" action="?/batchUpdateStatus" use:enhance={batchUpdateStatus(false)}>
-                                    <input type="hidden" name="dishIds" value={JSON.stringify(selectedDishes)} />
-                                    <input type="hidden" name="isAvailable" value="false" />
-                                    <button type="submit" class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded text-sm hover:bg-yellow-200">
-                                        批量下架
-                                    </button>
-                                </form>
                                 <form method="POST" action="?/batchDelete" use:enhance={batchDelete}>
                                     <input type="hidden" name="dishIds" value={JSON.stringify(selectedDishes)} />
                                     <button type="submit" class="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">
@@ -457,57 +394,27 @@
                             </div>
                         {/if}
                         
-                        <div class="w-14 h-14 bg-slate-100 rounded-lg flex items-center justify-center text-2xl overflow-hidden shrink-0">
-                            {#if dish.image_url}
-                                <img src={dish.image_url} alt={dish.name} class="w-full h-full object-cover" />
-                            {:else}
-                                <span>🍽️</span>
-                            {/if}
-                        </div>
-                        
                         <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-bold text-slate-800 truncate">{dish.name}</h3>
+                            <div class="flex items-center gap-2 mb-1">
+                                <h3 class="text-xl font-bold text-slate-800 truncate">{dish.name}</h3>
                                 {#if dish.is_recommended}
-                                    <span class="text-xs px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full shrink-0">推荐</span>
+                                    <span class="text-sm px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full shrink-0">推荐</span>
                                 {/if}
                             </div>
-                            <p class="text-sm text-slate-500 truncate">{dish.category}</p>
-                            <p class="text-base font-bold text-orange-600">¥{dish.price}</p>
+                            <p class="text-base text-slate-500 truncate">{dish.category}</p>
+                            <p class="text-2xl font-black text-orange-600">¥{dish.price}</p>
                         </div>
                         
                         <div class="flex items-center gap-1 shrink-0">
-                            <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap {dish.is_available ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}">
-                                {dish.is_available ? '上架' : '下架'}
-                            </span>
-                        </div>
-                        
-                        <div class="flex items-center gap-0.5 shrink-0">
-                            <form method="POST" action="?/updateDishStatus" use:enhance={toggleDishAvailability(dish)}>
-                                <input type="hidden" name="dishId" value={dish.id} />
-                                <input type="hidden" name="isAvailable" value={!dish.is_available} />
-                                <button 
-                                    type="submit"
-                                    class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"
-                                    title={dish.is_available ? '下架' : '上架'}
-                                >
-                                    {#if dish.is_available}
-                                        <ArrowDown size={16} />
-                                    {:else}
-                                        <ArrowUp size={16} />
-                                    {/if}
-                                </button>
-                            </form>
-                            
                             <button 
                                 onclick={() => openEditDish(dish)}
-                                class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"
+                                class="p-2 hover:bg-slate-100 rounded-lg text-slate-500"
                                 title="编辑"
                             >
-                                <Edit size={16} />
+                                <Edit size={22} />
                             </button>
                             
-                            <form method="POST" action="?/deleteDish" use:enhance={deleteDish(dish)}>
+                            <!-- <form method="POST" action="?/deleteDish" use:enhance={deleteDish(dish)}>
                                 <input type="hidden" name="dishId" value={dish.id} />
                                 <button 
                                     type="submit"
@@ -516,7 +423,7 @@
                                 >
                                     <Trash2 size={16} />
                                 </button>
-                            </form>
+                            </form> -->
                         </div>
                     </div>
                 {/each}
@@ -538,75 +445,47 @@
 <!-- 桌台详情模态框 -->
 {#if selectedTable}
     {@const status = getTableStatus(selectedTable)}
-    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-            <header class="bg-white p-4 shadow-sm flex items-center gap-3 border-b">
-                <button onclick={() => selectedTable = null} class="p-2 hover:bg-slate-100 rounded-full" aria-label="关闭模态框">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                </button>
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2">
+        <div class="bg-white rounded-xl w-full max-w-lg max-h-[95vh] overflow-hidden flex flex-col">
+            <header class="bg-orange-500 text-white p-4 flex items-center justify-between">
                 <div>
-                    <h2 class="font-bold text-lg">桌号 {selectedTable} 详情</h2>
-                    <p class="text-xs text-slate-500">状态: {status ? '用餐中' : '空闲'}</p>
+                    <h2 class="font-bold text-2xl">桌号 {selectedTable}</h2>
+                    <p class="text-orange-100 text-sm">{status ? '用餐中' : '空闲'}</p>
                 </div>
+                <button onclick={() => selectedTable = null} class="text-orange-100 hover:text-white text-base font-medium">
+                    关闭
+                </button>
             </header>
 
-            <div class="flex-1 overflow-y-auto p-4 space-y-6">
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
                 {#if status}
-                    <div class="bg-white p-6 rounded-xl shadow-sm text-center">
-                        <p class="text-slate-500 text-sm mb-1">当前消费总计</p>
-                        <p class="text-4xl font-bold text-slate-800">¥{status.total}</p>
-                        <p class="text-xs text-slate-400 mt-2">共 {status.orders.length} 次下单</p>
-                    </div>
-
                     <div class="space-y-4">
                         {#each status.orders as order}
                             {@const items = JSON.parse(order.items || '[]')}
-                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                <div class="bg-slate-50 p-3 border-b border-slate-100 flex justify-between items-center">
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-bold text-slate-700">第 {order.sequence_number} 次下单</span>
-                                        <span class="text-xs px-2 py-0.5 rounded-full {order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : order.status === 'cooking' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}">
-                                            {order.status === 'pending' ? '待制作' : order.status === 'cooking' ? '制作中' : '已完成'}
-                                        </span>
-                                    </div>
-                                    <span class="text-xs text-slate-400">{formatTime(order.created_at)}</span>
+                            <div class="bg-white rounded-xl shadow-md border-2 border-orange-400 overflow-hidden">
+                                <div class="p-3 border-b border-slate-100 bg-orange-50">
+                                    <span class="text-xl font-bold text-slate-800">第 {order.sequence_number} 单</span>
                                 </div>
-                                <div class="p-3 border-b border-slate-100">
-                                    <form method="POST" action="?/updateOrderStatus" use:enhance={updateOrderStatus(order.id, '__STATUS__').then(fn => {})}>
-                                        <input type="hidden" name="orderId" value={order.id} />
-                                        <select 
-                                            name="status"
-                                            value={order.status}
-                                            onchange={(e) => { e.target.form.requestSubmit(); }}
-                                            class="px-3 py-1 border border-slate-200 rounded-lg text-sm"
-                                        >
-                                            <option value="pending">待制作</option>
-                                            <option value="cooking">制作中</option>
-                                            <option value="done">已完成</option>
-                                        </select>
-                                    </form>
-                                </div>
-                                <div class="p-3 space-y-2">
+                                <div class="p-4 space-y-3">
                                     {#each items as item}
-                                        <div class="flex justify-between text-sm">
-                                            <span class="flex items-center gap-2">
-                                                <span class="w-5 h-5 bg-slate-100 rounded flex items-center justify-center text-xs font-bold text-slate-600">{item.qty}</span>
-                                                {item.name}
-                                            </span>
-                                            <span class="text-slate-600">¥{item.price * item.qty}</span>
+                                        <div class="flex items-center gap-4 py-2 border-b border-slate-100 last:border-0">
+                                            <span class="w-12 h-12 bg-orange-500 text-white rounded-lg flex items-center justify-center text-2xl font-bold shrink-0">{item.qty}</span>
+                                            <span class="text-2xl font-bold text-slate-800 flex-1">{item.name}</span>
                                         </div>
                                     {/each}
-                                    <div class="pt-2 mt-2 border-t border-dashed border-slate-200 flex justify-end">
-                                        <span class="text-sm font-bold">小计: ¥{order.subtotal}</span>
-                                    </div>
                                 </div>
                             </div>
                         {/each}
                     </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow-sm text-center">
+                        <p class="text-slate-500 text-base">消费总计</p>
+                        <p class="text-3xl font-bold text-orange-600">¥{status.total}</p>
+                    </div>
                 {:else}
                     <div class="text-center py-20 text-slate-400">
                         <Clock size={48} class="mx-auto mb-4 opacity-50" />
-                        <p>该桌当前没有活跃订单</p>
+                        <p class="text-xl">该桌当前没有活跃订单</p>
                     </div>
                 {/if}
             </div>
@@ -615,12 +494,12 @@
                 {#if status}
                     <form method="POST" action="?/settleTable" use:enhance={settleTable}>
                         <input type="hidden" name="tableId" value={selectedTable} />
-                        <button type="submit" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium">
+                        <button type="submit" class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold text-lg">
                             结束订单 / 释放桌位
                         </button>
                     </form>
                 {:else}
-                    <button class="w-full py-3 bg-slate-100 text-slate-400 rounded-lg font-medium cursor-not-allowed" disabled>
+                    <button class="w-full py-4 bg-slate-100 text-slate-400 rounded-lg font-bold text-lg cursor-not-allowed" disabled>
                         空闲桌位
                     </button>
                 {/if}

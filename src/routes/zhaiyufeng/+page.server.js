@@ -303,54 +303,6 @@ export const actions = {
         return { success: true };
     },
 
-    updateDishStatus: async ({ request, locals }) => {
-        const formData = await request.formData();
-        const supabase = locals.supabase;
-        
-        const dishId = formData.get('dishId');
-        const isAvailable = formData.get('isAvailable') === 'true';
-        
-        if (!dishId) return fail(400, { error: '无效的菜品ID' });
-
-        const { error: updateError } = await supabase
-            .from('dishes')
-            .update({ is_available: isAvailable })
-            .eq('id', parseInt(dishId.toString()));
-
-        if (updateError) {
-            return fail(500, { error: '更新状态失败' });
-        }
-
-        return { success: true };
-    },
-
-    batchUpdateStatus: async ({ request, locals }) => {
-        const formData = await request.formData();
-        const supabase = locals.supabase;
-        
-        const dishIds = formData.get('dishIds')?.toString();
-        const isAvailable = formData.get('isAvailable') === 'true';
-        
-        if (!dishIds) return fail(400, { error: '无效的菜品ID' });
-
-        let ids;
-        try {
-            ids = JSON.parse(dishIds);
-        } catch (e) {
-            return fail(400, { error: '无效的ID列表' });
-        }
-
-        const { error: updateError } = await supabase
-            .from('dishes')
-            .update({ is_available: isAvailable })
-            .in('id', ids);
-
-        if (updateError) {
-            return fail(500, { error: '批量更新失败' });
-        }
-
-        return { success: true, affected: ids.length };
-    },
 
     batchDelete: async ({ request, locals }) => {
         const formData = await request.formData();
@@ -532,27 +484,5 @@ export const actions = {
         return { success: true };
     },
 
-    // 更新订单状态
-    updateOrderStatus: async ({ request, locals }) => {
-        const formData = await request.formData();
-        const orderId = formData.get('orderId');
-        const status = formData.get('status');
-        const supabase = locals.supabase;
-        
-        if (!orderId || !status) return fail(400, { error: '参数无效' });
 
-        const validStatuses = ['pending', 'cooking', 'done'];
-        if (!validStatuses.includes(status)) {
-            return fail(400, { error: '无效的订单状态' });
-        }
-
-        const { error: updateError } = await supabase
-            .from('orders')
-            .update({ status })
-            .eq('id', parseInt(orderId.toString()));
-
-        if (updateError) return fail(500, { error: '更新订单状态失败' });
-
-        return { success: true };
-    }
 };
