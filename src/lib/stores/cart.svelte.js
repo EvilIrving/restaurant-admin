@@ -28,10 +28,11 @@ export const cart = {
         return cartItems.reduce((sum, item) => sum + item.qty, 0);
     },
     
-    addItem(dish, options = []) {
+    addItem(dish, options = [], remark = '') {
         const existing = cartItems.find(item => 
             item.id === dish.id && 
-            JSON.stringify(item.selectedOptions) === JSON.stringify(options)
+            JSON.stringify(item.selectedOptions) === JSON.stringify(options) &&
+            item.remark === remark
         );
         
         if (existing) {
@@ -42,7 +43,8 @@ export const cart = {
             cartItems = [...cartItems, { 
                 ...dish, 
                 qty: 1, 
-                selectedOptions: options 
+                selectedOptions: options,
+                remark 
             }];
         }
         saveCart();
