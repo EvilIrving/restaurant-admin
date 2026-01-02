@@ -82,7 +82,7 @@
             <h2 class="font-bold text-lg">分类管理</h2>
         </header>
 
-        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <div class="flex-1 overflow-y-auto p-4 space-y-2">
             <!-- 新增/编辑表单 -->
             {#if isAdding || editingId}
                 <div class="bg-slate-50 rounded-lg p-4 space-y-3">
@@ -144,9 +144,9 @@
             {/if}
             
             <!-- 分类列表 -->
-            <div class="space-y-2">
+            <div class="space-y-1">
                 {#each categories as cat, index (cat.id)}
-                    <div class="bg-white rounded-lg border border-slate-200 p-3 flex items-center gap-3">
+                    <div class="bg-white rounded-lg border border-slate-200 p-2 flex items-center gap-2">
                         <span class="text-2xl">{cat.icon || '🍽️'}</span>
                         <span class="flex-1 font-medium">{cat.name}</span>
                         <span class="text-xs text-slate-400">排序: {cat.sort_order}</span>
